@@ -1,0 +1,135 @@
+@import "tailwindcss";
+
+/* 1. ASOSIY SOZLAMALAR */
+*,
+::after,
+::before {
+  box-sizing: border-box;
+}
+
+@font-face {
+  font-family: FleurDeLeah-Regular;
+  src: url(./assets/fonts/FleurDeLeah-Regular.ttf) format("truetype");
+}
+
+@font-face {
+  font-family: Monoton-Regular;
+  src: url(./assets/fonts/Monoton-Regular.ttf) format("truetype");
+}
+
+/* 2. LAYOUT VA KONTEYNERLAR */
+html {
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* index.css yoki App.css */
+.app-wrapper {
+  padding: 7px;
+  transition: padding 0.2s ease;
+  background: transparent;
+  border-radius: 5px;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.is-maximized .app-wrapper {
+  padding: 0;
+  border-radius: 0;
+}
+
+body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+  user-select: none;
+  border-radius: inherit;
+}
+
+#root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 3. SCROLLBAR USLUBLARI */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #505050;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #cd6d0c;
+}
+
+/* 4. KOMPONENT USLUBLARI */
+.window {
+  height: 100%;
+  border-radius: inherit;
+  overflow: hidden;
+  background: #262626;
+  position: relative;
+  border: 1px solid #cd6d0c;
+  box-shadow: 0 0 4px 4px #26262624;
+}
+
+.titlebar {
+  height: 30px;
+  background: transparent;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 5px;
+}
+
+.appLogo {
+  font-family: FleurDeLeah-Regular;
+  padding: 2px;
+  margin-top: 2px;
+  font-size: 30px;
+  font-weight: 600;
+  color: #cd6d0c;
+}
+
+.window-controls button {
+  background: none;
+  border: none;
+  color: white;
+  width: 35px;
+  height: 20px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.window-controls button:hover {
+  color: #cd6d0c;
+}
+
+.footer {
+  border-bottom-left-radius: 5px;
+  border-bottom-right-radius: 5px;
+}
+
+/* 5. UMUMIY ELEMENTLAR */
+button {
+  cursor: pointer;
+}
+
+button:focus,
+button:active {
+  outline: none;
+}
+
+/* Truncate yordamchi klassi (agar Tailwind ishlamay qolsa) */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
