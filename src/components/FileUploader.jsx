@@ -88,16 +88,16 @@ export default function FileUploader({ addSongs }) {
     <div className="relative inline-block" ref={menuRef}> {/* Ref shu yerga beriladi */}
       <button
         onClick={() => setOpenMenu((open) => !open)}
-        className="p-2 rounded hover:bg-[#333]"
+        className="p-2 rounded hover:bg-surface"
       >
         <Plus />
       </button>
 
       {openMenu && (
-        <div className="absolute left-0 mt-1 w-44 bg-[#262626] border-2 border-[#cd6d0c] rounded shadow-lg z-50">
+        <div className="absolute right-0 mt-1 w-44 bg-secondary-bg border-2 border-brand rounded shadow-lg z-50">
           <button
             onClick={handleFiles}
-            className="flex items-center gap-2 w-full px-3 py-2 hover:bg-[#333] text-white text-sm"
+            className="flex items-center gap-2 w-full px-3 py-2 hover:bg-surface text-text-main text-sm"
           >
             <FileMusic size={16} />
             Add Files
@@ -105,7 +105,7 @@ export default function FileUploader({ addSongs }) {
 
           <button
             onClick={handleFolder}
-            className="flex items-center gap-2 w-full px-3 py-2 hover:bg-[#333] text-white text-sm"
+            className="flex items-center gap-2 w-full px-3 py-2 hover:bg-surface text-text-main text-sm"
           >
             <Folder size={16} />
             Add Folder

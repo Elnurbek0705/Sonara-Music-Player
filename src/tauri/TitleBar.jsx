@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { Moon, SunMedium, Droplet } from "lucide-react";
 
 const appWindow = getCurrentWindow();
 
-function TitleBar() {
+function TitleBar({ theme, toggleTheme }) {
   const [maximized, setMaximized] = useState(false);
 
   async function checkMaximized() {
@@ -23,7 +24,15 @@ function TitleBar() {
 
   // TitleBar.jsx ichida
   useEffect(() => {
-    checkMaximized();
+    // Initial check
+    appWindow.isMaximized().then(state => {
+      setMaximized(state);
+      if (state) {
+        document.documentElement.classList.add("is-maximized");
+      } else {
+        document.documentElement.classList.remove("is-maximized");
+      }
+    });
 
     // Oyna o'lchami o'zgarganda avtomatik tekshirish
     const unlisten = appWindow.onResized(() => {
@@ -41,7 +50,21 @@ function TitleBar() {
         <button className="appLogo">Sonara</button>
       </div>
 
-      <div className="window-controls flex gap-2 text-[11px]">
+      <div className="window-controls flex items-center gap-2 text-[11px]">
+        <button
+          onClick={toggleTheme}
+          title="Switch theme"
+          className="px-2 rounded hover:text-brand"
+        >
+          {theme === "light" ? (
+            <SunMedium size={14} />
+          ) : theme === "custom" ? (
+            <Droplet size={14} />
+          ) : (
+            <Moon size={14} />
+          )}
+        </button>
+
         <button onClick={() => appWindow.minimize()}>&#x2013;</button>
 
         <button onClick={toggleMaximize}>{maximized ? "❐" : "☐"}</button>

@@ -27,6 +27,15 @@ export default function PlayerContainer({
   seek,
   setIsRepeat,
   setIsShuffle,
+  playingPlaylistId,
+  playingTrackPath,
+  activePlaylistId,
+  playlists,
+  selectPlaylist,
+  addPlaylist,
+  deletePlaylist,
+  theme,
+  toggleTheme,
 }) {
   const title = useMemo(
     () => currentSong?.title || "Hech qanday trek tanlanmagan",
@@ -34,13 +43,13 @@ export default function PlayerContainer({
   );
 
   return (
-    <div className="flex flex-col h-screen w-full text-white window overflow-hidden ">
-      <TitleBar />
+    <div className="flex flex-col h-screen w-full text-text-main window overflow-hidden ">
+      <TitleBar theme={theme} toggleTheme={toggleTheme} />
 
       <audio ref={audioRef} hidden />
 
       <div className="flex flex-col flex-1 w-full p-1 min-h-0 overflow-hidden">
-        <h2 className="text-md mb-2 p-2 font-semibold text-[#fca311] bg-[#262626] text-ellipsis whitespace-nowrap overflow-hidden flex-shrink-0">
+        <h2 className="text-md mb-2 p-2 font-semibold text-brand bg-secondary-bg text-ellipsis whitespace-nowrap overflow-hidden flex-shrink-0">
           {title}
         </h2>
 
@@ -74,6 +83,13 @@ export default function PlayerContainer({
             removeSong={removeSong}
             clearPlaylist={clearPlaylist}
             addSongs={addSongs}
+            playingPlaylistId={playingPlaylistId}
+            playingTrackPath={playingTrackPath}
+            activePlaylistId={activePlaylistId}
+            playlists={playlists}
+            selectPlaylist={selectPlaylist}
+            addPlaylist={addPlaylist}
+            deletePlaylist={deletePlaylist}
           />
         </div>
       </div>

@@ -13,13 +13,13 @@ export default function Controls({
   setIsShuffle 
 }) {
   const buttonStyle = "p-2 transition-all duration-300 group rounded-full active:scale-90";
-  const iconStyle = "text-white fill-white group-hover:text-[#fca311] group-hover:fill-[#fca311] transition-colors duration-300";
+  const iconStyle = "text-text-main fill-text-main group-hover:text-brand group-hover:fill-brand transition-colors duration-300";
   
   // Rejimlar uchun maxsus uslub (active holati uchun)
   const activeIconStyle = (active) => 
     active 
-      ? "text-[#fca311] fill-[#fca311]" 
-      : "text-gray-400 group-hover:text-white transition-colors duration-300";
+      ? "text-brand fill-brand" 
+      : "text-text-dim group-hover:text-text-main transition-colors duration-300";
 
   return (
     <div className="flex items-center gap-3 mb-4 w-full justify-center">
@@ -45,7 +45,7 @@ export default function Controls({
       {/* Play from beginning */}
       <button
         onClick={playFromBeginning}
-        className="p-2 transition-all duration-300 group rounded-full border-2 border-white hover:border-[#fca311] active:scale-95 mx-2"
+        className="p-2 transition-all duration-300 group rounded-full border-2 border-text-main hover:border-brand active:scale-95 mx-2"
         aria-label="Play from beginning"
       >
         <Play size={26} className={iconStyle} />

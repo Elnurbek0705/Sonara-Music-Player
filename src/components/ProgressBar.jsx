@@ -11,11 +11,11 @@ export default function ProgressBar({ currentTime, duration, onSeek }) {
   return (
     <div className="w-full p-2">
       <div
-        className="h-2 rounded-full bg-[#373737] cursor-pointer"
+        className="h-2 rounded-full bg-surface cursor-pointer"
         onClick={handleSeek}
       >
         <div
-          className="h-full rounded-full bg-[#cd6d0c] transition-all"
+          className="h-full rounded-full bg-brand transition-all"
           style={{ width: `${progress}%` }}
         />
       </div>
