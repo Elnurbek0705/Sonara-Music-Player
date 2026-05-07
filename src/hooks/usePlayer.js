@@ -4,6 +4,11 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 
 const normalizeAudioPath = (path) => {
   if (!path) return "";
+  // Stream URL (http/https) bo'lsa — to'g'ridan ishlatish
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+  // Mahalliy fayl bo'lsa — convertFileSrc
   return convertFileSrc(path);
 };
 
@@ -24,18 +29,16 @@ const uniqueSongs = (songs) => {
     });
 };
 
-const generatePlaylistId = () => `playlist_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+const generatePlaylistId = () =>
+  `playlist_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
 export default function usePlayer() {
-  // UI STATE - which playlist is the user viewing?
   const [playlists, setPlaylists] = useState([]);
   const [activePlaylistId, setActivePlaylistId] = useState("default");
 
-  // PLAYBACK STATE - which song is actually playing and from which playlist?
   const [playingPlaylistId, setPlayingPlaylistId] = useState("default");
   const [playingTrackPath, setPlayingTrackPath] = useState(null);
 
-  // Playback controls state
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isRepeat, setIsRepeat] = useState(false);
@@ -46,49 +49,41 @@ export default function usePlayer() {
   const audioRef = useRef(null);
   const isLoadedRef = useRef(false);
 
-  // DERIVED: Songs to DISPLAY (from active playlist)
   const activePlaylist = useMemo(
     () => playlists.find((p) => p.id === activePlaylistId),
-    [playlists, activePlaylistId]
+    [playlists, activePlaylistId],
   );
-  const songs = useMemo(
-    () => activePlaylist?.songs || [],
-    [activePlaylist]
-  );
+  const songs = useMemo(() => activePlaylist?.songs || [], [activePlaylist]);
 
-  // DERIVED: Current song being PLAYED (from playing playlist, identified by path)
   const playingPlaylist = useMemo(
     () => playlists.find((p) => p.id === playingPlaylistId),
-    [playlists, playingPlaylistId]
+    [playlists, playingPlaylistId],
   );
-  const playingPlaylistSongs = useMemo(
-    () => playingPlaylist?.songs || [],
-    [playingPlaylist]
-  );
-  const currentSongIndex = playingTrackPath 
+  const playingPlaylistSongs = useMemo(() => playingPlaylist?.songs || [], [playingPlaylist]);
+
+  const currentSongIndex = playingTrackPath
     ? playingPlaylistSongs.findIndex((s) => s.path === playingTrackPath)
     : -1;
-  const currentSong = playingTrackPath && currentSongIndex >= 0 
-    ? playingPlaylistSongs[currentSongIndex] 
-    : null;
+  const currentSong =
+    playingTrackPath && currentSongIndex >= 0 ? playingPlaylistSongs[currentSongIndex] : null;
   const currentSrc = currentSong ? normalizeAudioPath(currentSong.path) : "";
 
-  // Playlists yuklash va saqlash
-
+  // Playlists yuklash
   useEffect(() => {
     if (!isLoadedRef.current) {
       isLoadedRef.current = true;
-      loadPlaylists().then(stored => {
-        const cleanedPlaylists = stored.map((p) => ({
-          ...p,
-          songs: uniqueSongs(p.songs),
-        }));
-        setPlaylists(cleanedPlaylists);
-        setActivePlaylistId("default");
-      }).catch(error => {
-        console.error("Failed to load playlists:", error);
-        setPlaylists([{ id: "default", name: "Default", songs: [] }]);
-      });
+      loadPlaylists()
+        .then((stored) => {
+          const cleaned = stored.map((p) => ({
+            ...p,
+            songs: uniqueSongs(p.songs),
+          }));
+          setPlaylists(cleaned);
+          setActivePlaylistId("default");
+        })
+        .catch(() => {
+          setPlaylists([{ id: "default", name: "Default", songs: [] }]);
+        });
     }
   }, []);
 
@@ -99,22 +94,18 @@ export default function usePlayer() {
     }
   }, [playlists]);
 
-  // Playback state o'zgarganda saqlash
+  // Playback state saqlash
   useEffect(() => {
     if (playingPlaylistId && playingTrackPath) {
-      // Save playback state to localStorage for resume on restart
       localStorage.setItem(
         "playbackState",
-        JSON.stringify({
-          playingPlaylistId,
-          playingTrackPath,
-          activePlaylistId,
-        })
+        JSON.stringify({ playingPlaylistId, playingTrackPath, activePlaylistId }),
       );
     }
   }, [playingPlaylistId, playingTrackPath, activePlaylistId]);
 
-  // Playback control funksiyalari
+  // ─── Playback controls ───────────────────────────────────────────
+
   const play = useCallback(async () => {
     const audio = audioRef.current;
     if (!audio || !currentSrc) return;
@@ -149,14 +140,10 @@ export default function usePlayer() {
     setCurrentTime(audio.currentTime);
   }, []);
 
-  // MUHIM: selectSong bu UI view uchun (qaysi playlistda sangi tanlash)
-  // Ammo ijro qilish uchun playingPlaylistId va playingTrackPath ni yangilash kerak
   const selectSong = useCallback(
     (index) => {
       if (index < 0 || index >= songs.length) return;
       const song = songs[index];
-      
-      // Set playback state to play from this song in the active playlist
       setPlayingPlaylistId(activePlaylistId);
       setPlayingTrackPath(song.path);
       setIsPlaying(true);
@@ -165,158 +152,119 @@ export default function usePlayer() {
     [songs, activePlaylistId],
   );
 
-  // Playlist boshqarish funksiyalari
+  // ─── Playlist boshqaruv ──────────────────────────────────────────
+
   const addPlaylist = useCallback((name) => {
     if (!name || typeof name !== "string" || name.trim().length === 0) return;
-    
-    setPlaylists((prev) => [
-      ...prev,
-      {
-        id: generatePlaylistId(),
-        name: name.trim(),
-        songs: [],
-      },
-    ]);
+    setPlaylists((prev) => [...prev, { id: generatePlaylistId(), name: name.trim(), songs: [] }]);
   }, []);
 
-  const deletePlaylist = useCallback((playlistId) => {
-    // Default playlistni o'chira olmaymiz
-    if (playlistId === "default") return;
+  const deletePlaylist = useCallback(
+    (playlistId) => {
+      if (playlistId === "default") return;
+      setPlaylists((prev) => prev.filter((p) => p.id !== playlistId));
+      if (activePlaylistId === playlistId) setActivePlaylistId("default");
+      if (playingPlaylistId === playlistId) {
+        pause();
+        setPlayingPlaylistId("default");
+        setPlayingTrackPath(null);
+      }
+    },
+    [activePlaylistId, playingPlaylistId, pause],
+  );
 
-    setPlaylists((prev) => prev.filter((p) => p.id !== playlistId));
+  const selectPlaylist = useCallback(
+    (playlistId) => {
+      if (playlists.some((p) => p.id === playlistId)) {
+        setActivePlaylistId(playlistId);
+      }
+    },
+    [playlists],
+  );
 
-    // Agar o'chirilgan playlist aktiv bo'lgan bo'lsa, Defaultga o'tish
-    if (activePlaylistId === playlistId) {
-      setActivePlaylistId("default");
-    }
-
-    // Agar o'chirilgan playlist ijro etilayotgan musiqa manbalik bo'lsa, to'xtat
-    if (playingPlaylistId === playlistId) {
-      pause();
-      setPlayingPlaylistId("default");
-      setPlayingTrackPath(null);
-    }
-  }, [activePlaylistId, playingPlaylistId, pause]);
-
-  // MUHIM: selectPlaylist faqat UI VIEW ni o'zgartiradi, ijroni o'zgarttirmaydi!
-  const selectPlaylist = useCallback((playlistId) => {
-    if (playlists.some((p) => p.id === playlistId)) {
-      setActivePlaylistId(playlistId);
-      // NOT changing playingPlaylistId or playingTrackPath - playback continues!
-    }
-  }, [playlists]);
-
-  // Aktiv playlistga qo'shiqlar qo'shish
   const addSongs = useCallback(
     (items) => {
       if (!Array.isArray(items) || items.length === 0 || !activePlaylistId) return;
-
       setPlaylists((prev) =>
         prev.map((p) => {
           if (p.id !== activePlaylistId) return p;
 
-          const existing = new Set(p.songs.map((song) => song.path));
           const added = items
-            .map((song) => ({
-              title: song.title || getTitleFromPath(song.path),
-              path: song.path,
+            .map((s) => ({
+              title: s.title || getTitleFromPath(s.path),
+              path: s.path,
+              isStream: s.isStream || false,
+              videoId: s.videoId || null,
+              thumbnail: s.thumbnail || null,
             }))
-            .filter((song) => song.path && !existing.has(song.path));
+            .filter((s) => {
+              if (!s.path) return false;
+              // videoId bo'yicha yoki path bo'yicha duplicate tekshiruv
+              return !p.songs.some((existing) =>
+                s.videoId ? existing.videoId === s.videoId : existing.path === s.path,
+              );
+            });
 
           if (added.length === 0) return p;
 
-          // Agar birinchi qo'shiq bo'lsa va hech qanday musiqa ijro etilmayotgan bo'lsa
           if (p.songs.length === 0 && !playingTrackPath) {
-            const firstSong = added[0];
             setPlayingPlaylistId(activePlaylistId);
-            setPlayingTrackPath(firstSong.path);
+            setPlayingTrackPath(added[0].path);
             setIsPlaying(true);
           }
 
-          return {
-            ...p,
-            songs: [...p.songs, ...added],
-          };
-        })
+          return { ...p, songs: [...p.songs, ...added] };
+        }),
       );
     },
-    [activePlaylistId, playingTrackPath]
+    [activePlaylistId, playingTrackPath],
   );
 
-  // Aktiv playlistdan qo'shiq o'chirish
   const removeSong = useCallback(
     (index) => {
       setPlaylists((prev) =>
         prev.map((p) => {
           if (p.id !== activePlaylistId) return p;
-
           if (index < 0 || index >= p.songs.length) return p;
-
-          const removedSongPath = p.songs[index].path;
-          const next = p.songs.filter((_, idx) => idx !== index);
-
-          // Agar o'chirilgan qo'shiq ayni ijro etilayotgan qo'shiq bo'lsa
-          if (playingPlaylistId === activePlaylistId && removedSongPath === playingTrackPath) {
+          const removedPath = p.songs[index].path;
+          const next = p.songs.filter((_, i) => i !== index);
+          if (playingPlaylistId === activePlaylistId && removedPath === playingTrackPath) {
             if (next.length === 0) {
-              // Ro'yxat bo'sh qoldi, ijroni to'xtat
               pause();
               setPlayingTrackPath(null);
             } else {
-              // Keyingi qo'shiqni ijro et
               setPlayingTrackPath(next[Math.min(index, next.length - 1)].path);
             }
           }
-
-          // Update currentIndex for UI display
-          setCurrentIndex((oldIndex) => {
+          setCurrentIndex((old) => {
             if (next.length === 0) return 0;
-            if (index < oldIndex) return oldIndex - 1;
-            if (index === oldIndex) return Math.min(oldIndex, next.length - 1);
-            return oldIndex;
+            if (index < old) return old - 1;
+            if (index === old) return Math.min(old, next.length - 1);
+            return old;
           });
-
-          return {
-            ...p,
-            songs: next,
-          };
-        })
+          return { ...p, songs: next };
+        }),
       );
     },
-    [activePlaylistId, playingPlaylistId, playingTrackPath, pause]
+    [activePlaylistId, playingPlaylistId, playingTrackPath, pause],
   );
 
-  // Aktiv playlistni tozalash
   const clearPlaylist = useCallback(() => {
-    setPlaylists((prev) =>
-      prev.map((p) => {
-        if (p.id !== activePlaylistId) return p;
-        return {
-          ...p,
-          songs: [],
-        };
-      })
-    );
-    
-    // Agar ijro etilayotgan qo'shiq shu playlistdan bo'lsa, to'xtat
+    setPlaylists((prev) => prev.map((p) => (p.id !== activePlaylistId ? p : { ...p, songs: [] })));
     if (playingPlaylistId === activePlaylistId) {
       pause();
       setPlayingTrackPath(null);
     }
-
     setCurrentIndex(0);
     setCurrentTime(0);
     setDuration(0);
   }, [activePlaylistId, playingPlaylistId, pause]);
 
-  // MUHIM: nextTrack ijro etilayotgan playlist ichidan keyingi qo'shiqni qidiradi!
+  // ─── Keyingi / oldingi track ─────────────────────────────────────
+
   const nextTrack = useCallback(() => {
     if (!playingPlaylist || playingPlaylistSongs.length === 0) return;
-
-    // Hozirgi qo'shiq indeksini topish
-    const currentIdx = playingPlaylistSongs.findIndex(
-      (s) => s.path === playingTrackPath
-    );
-    
+    const currentIdx = playingPlaylistSongs.findIndex((s) => s.path === playingTrackPath);
     let nextIdx;
     if (isShuffle) {
       do {
@@ -325,19 +273,14 @@ export default function usePlayer() {
     } else {
       nextIdx = (currentIdx + 1) % playingPlaylistSongs.length;
     }
-
     setPlayingTrackPath(playingPlaylistSongs[nextIdx].path);
+    setCurrentIndex(nextIdx); 
     setIsPlaying(true);
   }, [playingPlaylist, playingPlaylistSongs, playingTrackPath, isShuffle]);
 
   const previousTrack = useCallback(() => {
     if (!playingPlaylist || playingPlaylistSongs.length === 0) return;
-
-    // Hozirgi qo'shiq indeksini topish
-    const currentIdx = playingPlaylistSongs.findIndex(
-      (s) => s.path === playingTrackPath
-    );
-    
+    const currentIdx = playingPlaylistSongs.findIndex((s) => s.path === playingTrackPath);
     let prevIdx;
     if (isShuffle) {
       do {
@@ -346,22 +289,23 @@ export default function usePlayer() {
     } else {
       prevIdx = (currentIdx - 1 + playingPlaylistSongs.length) % playingPlaylistSongs.length;
     }
-
     setPlayingTrackPath(playingPlaylistSongs[prevIdx].path);
+    setCurrentIndex(prevIdx);
     setIsPlaying(true);
   }, [playingPlaylist, playingPlaylistSongs, playingTrackPath, isShuffle]);
 
   const handleAudioError = useCallback(() => {
     if (!currentSong) return;
-    console.warn("Invalid audio path, removing track:", currentSong.path);
+    console.warn("Invalid audio path, removing:", currentSong.path);
     removeSong(currentSongIndex);
     setIsPlaying(false);
   }, [currentSong, currentSongIndex, removeSong]);
 
-  // Audio event listeners
+  // ─── Audio event listeners ───────────────────────────────────────
+
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return undefined;
+    if (!audio) return;
 
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
     const handleDurationChange = () => setDuration(audio.duration || 0);
@@ -387,7 +331,8 @@ export default function usePlayer() {
     };
   }, [isRepeat, nextTrack, handleAudioError]);
 
-  // Song o'zgarganda audio src ni yangilash
+  // ─── FIX: src o'zgarganda FAQAT load — isPlaying dan mustaqil ────
+
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -404,9 +349,10 @@ export default function usePlayer() {
     if (isPlaying) {
       audio.play().catch(console.error);
     }
-  }, [currentSrc, isPlaying]);
+  }, [currentSrc]);
 
-  // Play/Pause holatiga javob berish
+  // ─── FIX: play/pause holati o'zgarganda FAQAT play/pause ─────────
+
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !audio.src) return;
@@ -416,29 +362,58 @@ export default function usePlayer() {
     } else {
       audio.pause();
     }
+  }, [isPlaying]); // ← currentSrc YO'Q
+
+  // usePlayer.js — currentSong o'zgarganda MediaSession yangilash
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+    if (!currentSong) return;
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: currentSong.title,
+      artist: "Sonara Music",
+      album: "",
+    });
+
+    navigator.mediaSession.setActionHandler("play", () => {
+      play();
+    });
+    navigator.mediaSession.setActionHandler("pause", () => {
+      pause();
+    });
+    navigator.mediaSession.setActionHandler("previoustrack", () => {
+      previousTrack();
+    });
+    navigator.mediaSession.setActionHandler("nexttrack", () => {
+      nextTrack();
+    });
+    navigator.mediaSession.setActionHandler("stop", () => {
+      stop();
+    });
+  }, [currentSong, play, pause, previousTrack, nextTrack, stop]);
+
+  // isPlaying o'zgarganda playbackState yangilash
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+    navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
   }, [isPlaying]);
 
-  return {
-    // Audio ref
-    audioRef,
+  // ─── Return ──────────────────────────────────────────────────────
 
-    // Playback state
-    currentIndex, // UI view index (which song is highlighted in current tab)
-    currentSong, // actual playing song
+  return {
+    audioRef,
+    currentIndex,
+    currentSong,
     currentTime,
     duration,
     isPlaying,
     isRepeat,
     isShuffle,
-
-    // UI state
-    songs, // songs from active playlist (for display)
+    songs,
     playlists,
     activePlaylistId,
     playingPlaylistId,
     playingTrackPath,
-
-    // Playback controls
     play,
     pause,
     stop,
@@ -446,23 +421,53 @@ export default function usePlayer() {
     selectSong,
     nextTrack,
     previousTrack,
-
-    // Playlist management
     addPlaylist,
     deletePlaylist,
     selectPlaylist,
-
-    // Song management (aktiv playlistga)
     addSongs,
     removeSong,
     clearPlaylist,
-
-    // Toggle controls
     setIsRepeat,
     setIsShuffle,
     togglePlay: () => {
       if (isPlaying) pause();
       else play();
+    },
+
+    playStreamDirectly: (song) => {
+      setPlayingPlaylistId(activePlaylistId);
+      setPlayingTrackPath(song.path);
+      setIsPlaying(true);
+
+      setPlaylists((prev) =>
+        prev.map((p) => {
+          if (p.id !== activePlaylistId) return p;
+
+          // videoId bo'yicha tekshirish (stream uchun)
+          // path bo'yicha tekshirish (mahalliy fayl uchun)
+          const exists = p.songs.some(
+            (s) =>
+              song.videoId
+                ? s.videoId === song.videoId // YT trek
+                : s.path === song.path, // mahalliy fayl
+          );
+
+          if (exists) {
+            // Mavjud bo'lsa — faqat URL ni yangilash
+            return {
+              ...p,
+              songs: p.songs.map((s) =>
+                s.videoId === song.videoId
+                  ? { ...s, path: song.path } // yangi URL bilan yangilash
+                  : s,
+              ),
+            };
+          }
+
+          // Yangi bo'lsa — qo'shish
+          return { ...p, songs: [...p.songs, song] };
+        }),
+      );
     },
     playFromBeginning: () => {
       const audio = audioRef.current;

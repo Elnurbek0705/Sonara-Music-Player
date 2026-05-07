@@ -1,20 +1,18 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Moon, SunMedium, Droplet } from "lucide-react";
+import { SkinsModal } from "../components/SkinsModal";
+import { GripVertical } from "lucide-react";
 
 const appWindow = getCurrentWindow();
 
-function TitleBar({ theme, toggleTheme }) {
+function TitleBar() {
   const [maximized, setMaximized] = useState(false);
+  const [skinsOpen, setSkinsOpen] = useState(false);
 
   async function checkMaximized() {
     const state = await appWindow.isMaximized();
     setMaximized(state);
-    if (state) {
-      document.documentElement.classList.add("is-maximized");
-    } else {
-      document.documentElement.classList.remove("is-maximized");
-    }
+    document.documentElement.classList.toggle("is-maximized", state);
   }
 
   async function toggleMaximize() {
@@ -22,56 +20,91 @@ function TitleBar({ theme, toggleTheme }) {
     checkMaximized();
   }
 
-  // TitleBar.jsx ichida
   useEffect(() => {
-    // Initial check
-    appWindow.isMaximized().then(state => {
+    appWindow.isMaximized().then((state) => {
       setMaximized(state);
-      if (state) {
-        document.documentElement.classList.add("is-maximized");
-      } else {
-        document.documentElement.classList.remove("is-maximized");
-      }
+      document.documentElement.classList.toggle("is-maximized", state);
     });
-
-    // Oyna o'lchami o'zgarganda avtomatik tekshirish
-    const unlisten = appWindow.onResized(() => {
-      checkMaximized();
-    });
-
+    const unlisten = appWindow.onResized(checkMaximized);
     return () => {
       unlisten.then((f) => f());
     };
   }, []);
 
-  return (
-    <div className="titlebar w-full flex justify-between position-relative z-10" data-tauri-drag-region>
-      <div className="title">
-        <button className="appLogo">Sonara</button>
-      </div>
+  const winBtn = {
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    width: 32,
+    height: 24,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "var(--text-dim)",
+    fontSize: 13,
+    borderRadius: 4,
+    transition: "color 0.15s, background 0.15s",
+  };
 
-      <div className="window-controls flex items-center gap-2 text-[11px]">
+  return (
+    <>
+      <SkinsModal open={skinsOpen} onClose={() => setSkinsOpen(false)} />
+
+      <div
+        className="titlebar w-full flex justify-between items-center relative z-10"
+        style={{
+          background: "var(--bg-surface-dark)",
+          borderBottom: "1px solid var(--border-color)",
+        }}
+        data-tauri-drag-region
+      >
+        {/* Logo */}
         <button
-          onClick={toggleTheme}
-          title="Switch theme"
-          className="px-2 rounded hover:text-brand"
+          className="appLogo"
+          onClick={() => setSkinsOpen(true)}
+          title="Open Skins"
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            color: "var(--text-dim)",
+          }}
         >
-          {theme === "light" ? (
-            <SunMedium size={14} />
-          ) : theme === "custom" ? (
-            <Droplet size={14} />
-          ) : (
-            <Moon size={14} />
-          )}
+          Sonara
+          <GripVertical size={16} style={{ marginLeft: 4, color: "var(--text-dim)" }} />
         </button>
 
-        <button onClick={() => appWindow.minimize()}>&#x2013;</button>
-
-        <button onClick={toggleMaximize}>{maximized ? "❐" : "☐"}</button>
-
-        <button onClick={() => appWindow.close()}>&#x2715;</button>
+        {/* Window controls */}
+        <div className="window-controls flex items-center">
+          {[
+            { label: "–", action: () => appWindow.minimize(), title: "Minimize" },
+            { label: maximized ? "❐" : "☐", action: toggleMaximize, title: "Maximize" },
+            { label: "✕", action: () => appWindow.close(), title: "Close", danger: true },
+          ].map(({ label, action, title, danger }) => (
+            <button
+              key={title}
+              onClick={action}
+              title={title}
+              style={winBtn}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = danger ? "#ff5f57" : "var(--accent)";
+                e.currentTarget.style.background = danger
+                  ? "rgba(255,95,87,0.12)"
+                  : "var(--bg-surface)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "var(--text-dim)";
+                e.currentTarget.style.background = "none";
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

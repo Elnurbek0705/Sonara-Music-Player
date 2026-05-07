@@ -1,48 +1,31 @@
-// SongList.jsx
-import { X, Trash2, Plus, Folder, FileMusic } from "lucide-react";
+import { X, Plus, Folder, FileMusic } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readDir } from "@tauri-apps/plugin-fs";
 import PlaylistTabs from "./PlaylistTabs";
 
 const AUDIO_EXT = ["mp3", "wav", "flac", "ogg", "m4a"];
-
 const getTitleFromPath = (path) => path?.split(/[/\\]/).pop() || "Unknown";
 
 const getAudioFiles = async (dirPath) => {
   const entries = await readDir(dirPath);
   let files = [];
-
   for (const entry of entries) {
     const itemPath = `${dirPath}\\${entry.name}`;
-
     if (entry.isDirectory) {
       files = files.concat(await getAudioFiles(itemPath));
       continue;
     }
-
     const ext = entry.name.split(".").pop()?.toLowerCase();
-    if (AUDIO_EXT.includes(ext)) {
-      files.push({ title: entry.name, path: itemPath });
-    }
+    if (AUDIO_EXT.includes(ext)) files.push({ title: entry.name, path: itemPath });
   }
-
   return files;
 };
 
 export default function SongList({
-  songs,
-  currentIndex,
-  onSongSelect,
-  removeSong,
-  addSongs,
-  playingPlaylistId,
-  playingTrackPath,
-  activePlaylistId,
-  playlists,
-  selectPlaylist,
-  addPlaylist,
-  deletePlaylist,
+  songs, currentIndex, onSongSelect, removeSong, addSongs,
+  playingPlaylistId, playingTrackPath, activePlaylistId,
+  playlists, selectPlaylist, addPlaylist, deletePlaylist,
 }) {
   const [openMenu, setOpenMenu] = useState(false);
   const [isAddingPlaylist, setIsAddingPlaylist] = useState(false);
@@ -51,25 +34,15 @@ export default function SongList({
   const inputRef = useRef(null);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setOpenMenu(false);
-      }
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setOpenMenu(false);
     };
-
-    if (openMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    if (openMenu) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [openMenu]);
 
   useEffect(() => {
-    if (isAddingPlaylist && inputRef.current) {
-      inputRef.current.focus();
-    }
+    if (isAddingPlaylist && inputRef.current) inputRef.current.focus();
   }, [isAddingPlaylist]);
 
   const handleAddPlaylist = () => {
@@ -81,160 +54,144 @@ export default function SongList({
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      handleAddPlaylist();
-    } else if (e.key === "Escape") {
-      setIsAddingPlaylist(false);
-      setNewPlaylistName("");
-    }
+    if (e.key === "Enter") handleAddPlaylist();
+    else if (e.key === "Escape") { setIsAddingPlaylist(false); setNewPlaylistName(""); }
   };
 
   const handleFiles = async () => {
     try {
-      const selected = await open({
-        multiple: true,
-        directory: false,
-        filters: [{ name: "Audio", extensions: AUDIO_EXT }],
-      });
-
+      const selected = await open({ multiple: true, directory: false, filters: [{ name: "Audio", extensions: AUDIO_EXT }] });
       if (!selected) return;
       const filePaths = Array.isArray(selected) ? selected : [selected];
       addSongs(filePaths.map((path) => ({ title: getTitleFromPath(path), path })));
-    } catch (error) {
-      console.error("File selection failed:", error);
-    } finally {
-      setOpenMenu(false);
-    }
+    } catch (err) { console.error(err); }
+    finally { setOpenMenu(false); }
   };
 
   const handleFolder = async () => {
     try {
-      const folder = await open({
-        directory: true,
-        multiple: false,
-      });
-
+      const folder = await open({ directory: true, multiple: false });
       if (!folder) return;
-      const audioFiles = await getAudioFiles(folder);
-      addSongs(audioFiles);
-    } catch (error) {
-      console.error("Folder selection failed:", error);
-    } finally {
-      setOpenMenu(false);
-    }
+      addSongs(await getAudioFiles(folder));
+    } catch (err) { console.error(err); }
+    finally { setOpenMenu(false); }
   };
 
-  // Hozirgi tab ichida ijro etilayotgan qo'shiq ekanligini aniqlash
   const isPlayingFromThisPlaylist = playingPlaylistId === activePlaylistId;
   const playingIndexInThisPlaylist = isPlayingFromThisPlaylist
-    ? songs.findIndex((s) => s.path === playingTrackPath)
-    : -1;
+    ? songs.findIndex((s) => s.path === playingTrackPath) : -1;
 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-      <div className="flex items-center justify-between gap-2 mb-2">
-         
-      {/* Playlist tabs */}
-      <PlaylistTabs
-        playlists={playlists}
-        activePlaylistId={activePlaylistId}
-        onSelectPlaylist={selectPlaylist}
-        onDeletePlaylist={deletePlaylist}
-      />
 
-      {/* Combined Add Button */}
-      <div className="relative inline-block" ref={menuRef}>
-        {!isAddingPlaylist ? (
+      {/* Toolbar */}
+      <div
+        className="flex items-center justify-between px-1 py-1 flex-shrink-0"
+        style={{ borderBottom: "1px solid var(--border-color)" }}
+      >
+        {/* Chap: PlaylistTabs */}
+        <div className="flex items-center gap-1 overflow-x-auto flex-1 min-w-0">
+          <PlaylistTabs
+            playlists={playlists}
+            activePlaylistId={activePlaylistId}
+            onSelectPlaylist={selectPlaylist}
+            onDeletePlaylist={deletePlaylist}
+          />
+
+          {/* Yangi playlist input */}
+          {isAddingPlaylist && (
+            <div
+              className="flex items-center gap-1 px-2 py-0.5 rounded flex-shrink-0"
+              style={{ background: "var(--bg-surface)", border: "1px solid var(--accent)" }}
+            >
+              <input
+                ref={inputRef}
+                type="text"
+                value={newPlaylistName}
+                onChange={(e) => setNewPlaylistName(e.target.value)}
+                onBlur={() => { if (newPlaylistName.trim()) handleAddPlaylist(); else setIsAddingPlaylist(false); }}
+                onKeyDown={handleKeyDown}
+                className="bg-transparent text-xs outline-none w-24"
+                style={{ color: "var(--text-main)" }}
+                placeholder="Playlist nomi..."
+              />
+              <span className="text-xs" style={{ color: "var(--text-muted)" }}>↵</span>
+            </div>
+          )}
+        </div>
+
+        {/* O'ng: Plus button */}
+        <div className="relative flex-shrink-0 ml-1" ref={menuRef}>
           <button
-            onClick={() => setOpenMenu((open) => !open)}
-            className="p-2 rounded hover:bg-surface"
+            onClick={() => setOpenMenu((v) => !v)}
+            className="flex items-center justify-center w-6 h-6 rounded transition-colors"
+            style={{ color: "var(--text-dim)" }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--accent)"; e.currentTarget.style.background = "var(--bg-surface)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-dim)"; e.currentTarget.style.background = "transparent"; }}
             title="Qo'shish"
           >
-            <Plus />
+            <Plus size={15} />
           </button>
-        ) : (
-          <input
-            ref={inputRef}
-            type="text"
-            value={newPlaylistName}
-            onChange={(e) => setNewPlaylistName(e.target.value)}
-            onBlur={() => {
-              if (newPlaylistName.trim()) {
-                handleAddPlaylist();
-              } else {
-                setIsAddingPlaylist(false);
-              }
-            }}
-            onKeyDown={handleKeyDown}
-            className="px-2 py-1 bg-surface text-text-main rounded text-sm"
-            placeholder="Playlist nomi"
-          />
-        )}
 
-        {openMenu && !isAddingPlaylist && (
-          <div className="absolute right-0 mt-1 w-48 bg-secondary-bg border-2 border-brand rounded shadow-lg z-50">
-            <button
-              onClick={() => {
-                setIsAddingPlaylist(true);
-                setOpenMenu(false);
-              }}
-              className="flex items-center gap-2 w-full px-3 py-2 hover:bg-surface text-text-main text-sm"
+          {openMenu && (
+            <div
+              className="absolute right-0 top-full mt-1 w-44 rounded shadow-lg z-50 overflow-hidden"
+              style={{ background: "var(--bg-surface-dark)", border: "1px solid var(--border-color)" }}
             >
-              <Plus size={16} />
-              Yangi playlist
-            </button>
-            <button
-              onClick={handleFiles}
-              className="flex items-center gap-2 w-full px-3 py-2 hover:bg-surface text-text-main text-sm"
-            >
-              <FileMusic size={16} />
-              Fayllar qo'shish
-            </button>
-            <button
-              onClick={handleFolder}
-              className="flex items-center gap-2 w-full px-3 py-2 hover:bg-surface text-text-main text-sm"
-            >
-              <Folder size={16} />
-              Papka qo'shish
-            </button>
-          </div>
-        )}
-      </div>
+              {[
+                { label: "Yangi playlist", icon: <Plus size={14} />, action: () => { setIsAddingPlaylist(true); setOpenMenu(false); } },
+                { label: "Fayllar qo'shish", icon: <FileMusic size={14} />, action: handleFiles },
+                { label: "Papka qo'shish", icon: <Folder size={14} />, action: handleFolder },
+              ].map(({ label, icon, action }) => (
+                <button
+                  key={label}
+                  onClick={action}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm transition-colors"
+                  style={{ color: "var(--text-main)" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-surface)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <span style={{ color: "var(--accent)" }}>{icon}</span>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      <ul className="flex-1 overflow-y-auto mt-2 pr-1 custom-scrollbar">
+      {/* Qo'shiqlar ro'yxati */}
+      <ul className="flex-1 overflow-y-auto mt-1 pr-1">
         {songs.length === 0 ? (
-          <li className="px-4 py-8 text-center text-text-dim">No songs in the playlist yet.</li>
+          <li className="px-4 py-8 text-center text-sm" style={{ color: "var(--text-dim)" }}>
+            Playlist bo'sh
+          </li>
         ) : (
           songs.map((song, index) => {
             const isPlayingNow = isPlayingFromThisPlaylist && index === playingIndexInThisPlaylist;
             const isHighlighted = index === currentIndex;
-
             return (
               <li
                 key={song.path || index}
-                className={`flex justify-between items-center px-4 py-3 cursor-pointer w-full mb-1 transition-colors ${
-                  isPlayingNow
-                    ? "bg-brand text-black font-semibold"
-                    : isHighlighted
-                    ? "bg-brand-strong text-text-main"
-                    : "bg-surface hover:bg-surface-dark text-text-main"
-                }`}
                 onClick={() => onSongSelect(index)}
+                className="flex justify-between items-center px-3 py-2.5 cursor-pointer w-full mb-0.5 transition-colors rounded"
+                style={{
+                  background: isPlayingNow ? "var(--accent)" : isHighlighted ? "var(--accent-strong)" : "var(--bg-surface)",
+                  color: isPlayingNow ? "var(--bg-primary)" : "var(--text-main)",
+                }}
+                onMouseEnter={(e) => { if (!isPlayingNow && !isHighlighted) e.currentTarget.style.background = "var(--bg-surface-dark)"; }}
+                onMouseLeave={(e) => { if (!isPlayingNow && !isHighlighted) e.currentTarget.style.background = "var(--bg-surface)"; }}
               >
-                <span className="truncate pr-4">
-                  {index + 1}. {song.title}
-                </span>
+                <span className="truncate pr-3 text-sm">{index + 1}. {song.title}</span>
                 <button
                   type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    removeSong(index);
-                  }}
-                  className="p-1 rounded hover:bg-surface"
-                  aria-label="Remove song"
+                  onClick={(e) => { e.stopPropagation(); removeSong(index); }}
+                  className="p-1 rounded flex-shrink-0"
+                  style={{ color: "var(--text-muted)" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
                 >
-                  <X size={14} className="text-text-dim" />
+                  <X size={13} />
                 </button>
               </li>
             );

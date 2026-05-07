@@ -17,55 +17,27 @@
   src: url(./assets/fonts/Monoton-Regular.ttf) format("truetype");
 }
 
-:root {
-  --bg-primary: #151517;
-  --bg-secondary: #262626;
-  --bg-surface: #333333;
-  --bg-surface-dark: #222222;
-  --accent: #fca311;
-  --accent-strong: #cd6d0c;
-  --border-color: #cd6d0c;
-  --text-main: #f7f7f7;
-  --text-dim: #b3b3b3;
-  --text-muted: #9ca3af;
-}
-
-.light-theme {
-  --bg-primary: #f8fafc;
-  --bg-secondary: #ffffff;
-  --bg-surface: #e5e7eb;
-  --bg-surface-dark: #d1d5db;
-  --accent: #2563eb;
-  --accent-strong: #1d4ed8;
-  --border-color: #2563eb;
-  --text-main: #111827;
-  --text-dim: #6b7280;
-  --text-muted: #4b5563;
-}
-
-.custom-theme {
-  --bg-primary: #0f172a;
-  --bg-secondary: #111827;
-  --bg-surface: #1e293b;
-  --bg-surface-dark: #0f172a;
-  --accent: #22c55e;
-  --accent-strong: #16a34a;
-  --border-color: #22c55e;
-  --text-main: #e2e8f0;
-  --text-dim: #94a3b8;
-  --text-muted: #cbd5e1;
+@theme {
+  --color-brand:        var(--accent);
+  --color-brand-strong: var(--accent-strong);
+  --color-main-bg:      var(--bg-primary);
+  --color-secondary-bg: var(--bg-secondary);
+  --color-surface:      var(--bg-surface);
+  --color-surface-dark: var(--bg-surface-dark);
+  --color-text-main:    var(--text-main);
+  --color-text-dim:     var(--text-dim);
+  --color-border:       var(--border-color);
 }
 
 html {
   height: 100vh;
   overflow: hidden;
-  background: var(--bg-primary);
+  background: transparent;
 }
 
 .app-wrapper {
   padding: 7px;
   transition: padding 0.2s ease;
-  background: var(--bg-primary);
   border-radius: 5px;
   height: 100vh;
   overflow: hidden;
@@ -81,7 +53,6 @@ body {
   width: 100%;
   margin: 0;
   overflow: hidden;
-  background: var(--bg-primary);
   color: var(--text-main);
   user-select: none;
   border-radius: inherit;
@@ -94,7 +65,7 @@ body {
   overflow: hidden;
 }
 
-/* 3. SCROLLBAR USLUBLARI */
+/* SCROLLBAR */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -107,7 +78,7 @@ body {
   background: var(--accent);
 }
 
-/* 4. KOMPONENT USLUBLARI */
+/* WINDOW */
 .window {
   height: 100%;
   border-radius: inherit;
@@ -115,17 +86,19 @@ body {
   background: var(--bg-secondary);
   position: relative;
   border: 1px solid var(--border-color);
-  box-shadow: 0 0 4px 4px #26262624;
+  box-shadow: 0 0 8px 2px #00000060;
 }
 
+/* TITLEBAR */
 .titlebar {
   height: 30px;
-  background: transparent;
+  background: var(--bg-surface-dark);
   color: var(--text-main);
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 0 5px;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .appLogo {
@@ -140,7 +113,7 @@ body {
 .window-controls button {
   background: none;
   border: none;
-  color: var(--text-main);
+  color: var(--text-dim);
   width: 35px;
   height: 20px;
   cursor: pointer;
@@ -154,9 +127,10 @@ body {
 .footer {
   border-bottom-left-radius: 5px;
   border-bottom-right-radius: 5px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-surface-dark);
 }
 
-/* 5. UMUMIY ELEMENTLAR */
 button {
   cursor: pointer;
 }
@@ -166,7 +140,6 @@ button:active {
   outline: none;
 }
 
-/* Truncate yordamchi klassi (agar Tailwind ishlamay qolsa) */
 .truncate {
   overflow: hidden;
   text-overflow: ellipsis;

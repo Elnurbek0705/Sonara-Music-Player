@@ -1,82 +1,80 @@
 import { Pause, Play, SkipBack, SkipForward, Square, Repeat, Shuffle } from "lucide-react";
 
-export default function Controls({ 
-  togglePlay, 
-  isPlaying, 
-  nextSong, 
-  prevSong, 
-  stopSong, 
+export default function Controls({
+  togglePlay,
+  isPlaying,
+  nextSong,
+  prevSong,
+  stopSong,
   playFromBeginning,
   isRepeat,
   setIsRepeat,
   isShuffle,
-  setIsShuffle 
+  setIsShuffle
 }) {
-  const buttonStyle = "p-2 transition-all duration-300 group rounded-full active:scale-90";
-  const iconStyle = "text-text-main fill-text-main group-hover:text-brand group-hover:fill-brand transition-colors duration-300";
-  
-  // Rejimlar uchun maxsus uslub (active holati uchun)
-  const activeIconStyle = (active) => 
-    active 
-      ? "text-brand fill-brand" 
-      : "text-text-dim group-hover:text-text-main transition-colors duration-300";
+  const btn = "p-2 transition-all duration-200 group rounded-full active:scale-90";
+
+  const icon = [
+    "text-text-dim fill-text-dim",
+    "group-hover:text-brand group-hover:fill-brand",
+    "transition-colors duration-200",
+  ].join(" ");
+
+  const modeIcon = (active) =>
+    active
+      ? "text-brand fill-brand"
+      : ["text-text-muted fill-text-muted", "group-hover:text-text-dim", "transition-colors duration-200"].join(" ");
 
   return (
     <div className="flex items-center gap-3 mb-4 w-full justify-center">
-      {/* Shuffle */}
-      <button 
-        onClick={() => setIsShuffle(!isShuffle)} 
-        className={buttonStyle} 
-        title="Shuffle"
-      >
-        <Shuffle size={18} className={activeIconStyle(isShuffle)} />
+
+      <button onClick={() => setIsShuffle(!isShuffle)} className={btn} title="Shuffle">
+        <Shuffle size={18} className={modeIcon(isShuffle)} />
       </button>
 
-      {/* Previous */}
-      <button onClick={prevSong} className={buttonStyle} aria-label="Previous">
-        <SkipBack size={21} className={iconStyle} />
+      <button onClick={prevSong} className={btn} aria-label="Previous">
+        <SkipBack size={21} className={icon} />
       </button>
 
-      {/* Stop */}
-      <button onClick={stopSong} className={buttonStyle} aria-label="Stop">
-        <Square size={21} className={iconStyle} />
+      <button onClick={stopSong} className={btn} aria-label="Stop">
+        <Square size={21} className={icon} />
       </button>
 
-      {/* Play from beginning */}
+      {/* Play from beginning — asosiy doira tugma */}
       <button
         onClick={playFromBeginning}
-        className="p-2 transition-all duration-300 group rounded-full border-2 border-text-main hover:border-brand active:scale-95 mx-2"
+        className="p-2 mx-2 rounded-full border-2 transition-all duration-200 active:scale-95 group"
+        style={{
+          borderColor: "var(--accent)",
+          color: "var(--accent)",
+        }}
+        onMouseEnter={e => {
+          e.currentTarget.style.background = "var(--accent)";
+          e.currentTarget.style.color = "var(--bg-primary)";
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.background = "transparent";
+          e.currentTarget.style.color = "var(--accent)";
+        }}
         aria-label="Play from beginning"
       >
-        <Play size={26} className={iconStyle} />
+        <Play size={26} style={{ fill: "currentColor" }} />
       </button>
 
-      {/* Toggle Play/Pause */}
-      <button  
-        onClick={togglePlay}
-        className={buttonStyle}
-        aria-label={isPlaying ? "Pause" : "Play"}
-      >
-        {isPlaying ? (
-          <Pause size={24} className={iconStyle} />
-        ) : (
-          <Play size={24} className={iconStyle} />
-        )}
+      <button onClick={togglePlay} className={btn} aria-label={isPlaying ? "Pause" : "Play"}>
+        {isPlaying
+          ? <Pause size={24} className={icon} />
+          : <Play  size={24} className={icon} />}
       </button>
 
-      {/* Next */}
-      <button onClick={nextSong} className={buttonStyle} aria-label="Next">
-        <SkipForward size={21} className={iconStyle} />
+      <button onClick={nextSong} className={btn} aria-label="Next">
+        <SkipForward size={21} className={icon} />
       </button>
 
-      {/* Repeat */}
-      <button 
-        onClick={() => setIsRepeat(!isRepeat)} 
-        className={buttonStyle} 
-        title="Repeat"
-      >
-        <Repeat size={18} className={activeIconStyle(isRepeat)} />
+      <button onClick={() => setIsRepeat(!isRepeat)} className={btn} title="Repeat">
+        <Repeat size={18} className={modeIcon(isRepeat)} />
       </button>
+
     </div>
   );
 }

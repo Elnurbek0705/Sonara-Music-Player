@@ -25,7 +25,7 @@ export default function PlaylistTabs({
           onClick={() => onSelectPlaylist(playlist.id)}
           className={`flex items-center gap-2 px-3 py-1.5 rounded whitespace-nowrap text-sm cursor-pointer transition-all ${
             activePlaylistId === playlist.id
-              ? "bg-brand text-black font-semibold"
+              ? "bg-brand  font-semibold"
               : "bg-secondary-bg text-text-dim hover:bg-surface"
           }`}
         >
