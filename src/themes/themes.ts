@@ -1,4 +1,4 @@
-export type ThemeKey = "default" | "fire" | "rose" | "cyber" | "forest" | "slate";
+export type ThemeKey = "default" | "fire" | "rose" | "cyber" | "forest" | "slate" | "light";
 
 export interface Theme {
   key: ThemeKey;
@@ -108,6 +108,23 @@ export const themes: Theme[] = [
       "--text-main":       "#F8F9FA",
       "--text-dim":        "#CED4DA",
       "--text-muted":      "#6C757D",
+    },
+  },
+  {
+    key: "light",
+    label: "Light",
+    icon: "☀",
+    vars: {
+      "--bg-primary":      "#f0ede8",
+      "--bg-secondary":    "#e8e4de",
+      "--bg-surface":      "#d8d3cb",
+      "--bg-surface-dark": "#f7f4f0",
+      "--accent":          "#b07030",
+      "--accent-strong":   "#8b5520",
+      "--border-color":    "#c8bfb0",
+      "--text-main":       "#1a1814",
+      "--text-dim":        "#504840",
+      "--text-muted":      "#9a9088",
     },
   },
 ];
