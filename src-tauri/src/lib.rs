@@ -4,6 +4,45 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
 };
 use tauri_plugin_shell::ShellExt;
+use tauri_plugin_updater::UpdaterExt;
+
+#[derive(serde::Serialize)]
+struct UpdateInfo {
+    available: bool,
+    version: Option<String>,
+    body: Option<String>,
+}
+
+#[tauri::command]
+async fn check_update(app: tauri::AppHandle) -> Result<UpdateInfo, String> {
+    match app.updater().map_err(|e| e.to_string())?.check().await {
+        Ok(Some(update)) => Ok(UpdateInfo {
+            available: true,
+            version: Some(update.version.clone()),
+            body: update.body.clone(),
+        }),
+        Ok(None) => Ok(UpdateInfo {
+            available: false,
+            version: None,
+            body: None,
+        }),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
+async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
+    let updater = app.updater().map_err(|e| e.to_string())?;
+    if let Some(update) = updater.check().await.map_err(|e| e.to_string())? {
+        update
+            .download_and_install(|_, _| {}, || {})
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 struct SearchResult {
@@ -22,19 +61,46 @@ struct AudioInfo {
     thumbnail: String,
 }
 
+fn find_cookies(app: &tauri::AppHandle) -> Option<String> {
+    let dirs = [
+        app.path().app_data_dir().ok(),
+        app.path().resource_dir().ok(),
+    ];
+    for dir in dirs.iter().flatten() {
+        let path = dir.join("cookies.txt");
+        if path.exists() {
+            return Some(path.to_string_lossy().to_string());
+        }
+    }
+    None
+}
+
 #[tauri::command]
 async fn search_youtube(app: tauri::AppHandle, query: String) -> Result<Vec<SearchResult>, String> {
+    let mut args = vec![
+        format!("ytsearch10:{}", query),
+        "--dump-json".to_string(),
+        "--flat-playlist".to_string(),
+        "--no-warnings".to_string(),
+        "--quiet".to_string(),
+        "--user-agent".to_string(),
+        USER_AGENT.to_string(),
+        "--extractor-retries".to_string(),
+        "3".to_string(),
+        "--socket-timeout".to_string(),
+        "30".to_string(),
+    ];
+    if let Some(cookies) = find_cookies(&app) {
+        args.push("--cookies".to_string());
+        args.push(cookies);
+    }
+    let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+
     let output = app
         .shell()
         .sidecar("yt-dlp")
         .map_err(|e| e.to_string())?
-        .args([
-            &format!("ytsearch10:{}", query),
-            "--dump-json",
-            "--flat-playlist",
-            "--no-warnings",
-            "--quiet",
-        ])
+        .args(&args_refs)
         .output()
         .await
         .map_err(|e| e.to_string())?;
@@ -70,18 +136,31 @@ async fn search_youtube(app: tauri::AppHandle, query: String) -> Result<Vec<Sear
 async fn get_audio_url(app: tauri::AppHandle, video_id: String) -> Result<AudioInfo, String> {
     let url = format!("https://www.youtube.com/watch?v={}", video_id);
 
+    let mut args = vec![
+        url.clone(),
+        "--dump-json".to_string(),
+        "--no-warnings".to_string(),
+        "--quiet".to_string(),
+        "-f".to_string(),
+        "bestaudio[ext=m4a]/bestaudio/best".to_string(),
+        "--user-agent".to_string(),
+        USER_AGENT.to_string(),
+        "--extractor-retries".to_string(),
+        "3".to_string(),
+        "--socket-timeout".to_string(),
+        "30".to_string(),
+    ];
+    if let Some(cookies) = find_cookies(&app) {
+        args.push("--cookies".to_string());
+        args.push(cookies);
+    }
+    let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+
     let output = app
         .shell()
         .sidecar("yt-dlp")
         .map_err(|e| e.to_string())?
-        .args([
-            &url,
-            "--dump-json",
-            "--no-warnings",
-            "--quiet",
-            "-f",
-            "bestaudio[ext=m4a]/bestaudio/best",
-        ])
+        .args(&args_refs)
         .output()
         .await
         .map_err(|e| e.to_string())?;
@@ -117,6 +196,8 @@ async fn get_audio_url(app: tauri::AppHandle, video_id: String) -> Result<AudioI
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
@@ -179,7 +260,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![search_youtube, get_audio_url])
+        .invoke_handler(tauri::generate_handler![search_youtube, get_audio_url, check_update, install_update])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

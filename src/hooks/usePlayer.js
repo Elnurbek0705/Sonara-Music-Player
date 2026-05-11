@@ -1,28 +1,35 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { loadPlaylists, savePlaylists } from "../utils/playlistStorage";
 import { convertFileSrc } from "@tauri-apps/api/core";
 
+const STREAM_URL_TTL = 5 * 60 * 60 * 1000; // 5 soat (YouTube URL muddati)
+
 const normalizeAudioPath = (path) => {
   if (!path) return "";
-  if (path.startsWith("http://") || path.startsWith("https://")) {
-    return path;
-  }
+  if (path.startsWith("youtube://")) return ""; // async resolution kerak
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
   return convertFileSrc(path);
 };
 
 const getTitleFromPath = (path) => path?.split(/[\\/]/).pop() || "Unknown";
 
+// FIX 1: barcha metadata saqlanadi, youtube:// formatga o'tkaziladi
 const uniqueSongs = (songs) => {
   const seen = new Set();
   return songs
     .filter((song) => song?.path)
     .map((song) => ({
       title: song.title || getTitleFromPath(song.path),
-      path: song.path,
+      path: song.isStream && song.videoId ? `youtube://${song.videoId}` : song.path,
+      isStream: song.isStream || false,
+      videoId: song.videoId || null,
+      thumbnail: song.thumbnail || null,
     }))
     .filter((song) => {
-      if (seen.has(song.path)) return false;
-      seen.add(song.path);
+      const key = song.videoId || song.path;
+      if (seen.has(key)) return false;
+      seen.add(key);
       return true;
     });
 };
@@ -46,6 +53,14 @@ export default function usePlayer() {
 
   const audioRef = useRef(null);
   const isLoadedRef = useRef(false);
+  const isPlayingRef = useRef(false);
+  // FIX 3: YouTube CDN URL'larini xotirada saqlash (diskka saqlanmaydi)
+  const streamUrlCache = useRef(new Map()); // videoId -> { url, fetchedAt }
+
+  // isPlayingRef ni sinxronlashtirish (async effect uchun)
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
 
   const activePlaylist = useMemo(
     () => playlists.find((p) => p.id === activePlaylistId),
@@ -57,14 +72,18 @@ export default function usePlayer() {
     () => playlists.find((p) => p.id === playingPlaylistId),
     [playlists, playingPlaylistId],
   );
-  const playingPlaylistSongs = useMemo(() => playingPlaylist?.songs || [], [playingPlaylist]);
+  const playingPlaylistSongs = useMemo(
+    () => playingPlaylist?.songs || [],
+    [playingPlaylist],
+  );
 
   const currentSongIndex = playingTrackPath
     ? playingPlaylistSongs.findIndex((s) => s.path === playingTrackPath)
     : -1;
   const currentSong =
-    playingTrackPath && currentSongIndex >= 0 ? playingPlaylistSongs[currentSongIndex] : null;
-  const currentSrc = currentSong ? normalizeAudioPath(currentSong.path) : "";
+    playingTrackPath && currentSongIndex >= 0
+      ? playingPlaylistSongs[currentSongIndex]
+      : null;
 
   useEffect(() => {
     if (!isLoadedRef.current) {
@@ -83,6 +102,7 @@ export default function usePlayer() {
         });
     }
   }, []);
+
   useEffect(() => {
     if (playlists.length > 0) {
       savePlaylists(playlists);
@@ -102,14 +122,14 @@ export default function usePlayer() {
 
   const play = useCallback(async () => {
     const audio = audioRef.current;
-    if (!audio || !currentSrc) return;
+    if (!audio || !audio.src) return;
     try {
       await audio.play();
       setIsPlaying(true);
     } catch (error) {
       console.error("Audio play failed:", error);
     }
-  }, [currentSrc]);
+  }, []);
 
   const pause = useCallback(() => {
     const audio = audioRef.current;
@@ -150,7 +170,10 @@ export default function usePlayer() {
 
   const addPlaylist = useCallback((name) => {
     if (!name || typeof name !== "string" || name.trim().length === 0) return;
-    setPlaylists((prev) => [...prev, { id: generatePlaylistId(), name: name.trim(), songs: [] }]);
+    setPlaylists((prev) => [
+      ...prev,
+      { id: generatePlaylistId(), name: name.trim(), songs: [] },
+    ]);
   }, []);
 
   const deletePlaylist = useCallback(
@@ -179,6 +202,17 @@ export default function usePlayer() {
   const addSongs = useCallback(
     (items) => {
       if (!Array.isArray(items) || items.length === 0 || !activePlaylistId) return;
+
+      // FIX 3: Yangi CDN URL'larni keshga saqlash
+      items.forEach((s) => {
+        if (s.isStream && s.videoId && s.path?.startsWith("http")) {
+          streamUrlCache.current.set(s.videoId, {
+            url: s.path,
+            fetchedAt: Date.now(),
+          });
+        }
+      });
+
       setPlaylists((prev) =>
         prev.map((p) => {
           if (p.id !== activePlaylistId) return p;
@@ -186,7 +220,8 @@ export default function usePlayer() {
           const added = items
             .map((s) => ({
               title: s.title || getTitleFromPath(s.path),
-              path: s.path,
+              // FIX 3: YouTube stream'lari uchun youtube://videoId saqlanadi
+              path: s.isStream && s.videoId ? `youtube://${s.videoId}` : s.path,
               isStream: s.isStream || false,
               videoId: s.videoId || null,
               thumbnail: s.thumbnail || null,
@@ -194,7 +229,9 @@ export default function usePlayer() {
             .filter((s) => {
               if (!s.path) return false;
               return !p.songs.some((existing) =>
-                s.videoId ? existing.videoId === s.videoId : existing.path === s.path,
+                s.videoId
+                  ? existing.videoId === s.videoId
+                  : existing.path === s.path,
               );
             });
 
@@ -221,7 +258,10 @@ export default function usePlayer() {
           if (index < 0 || index >= p.songs.length) return p;
           const removedPath = p.songs[index].path;
           const next = p.songs.filter((_, i) => i !== index);
-          if (playingPlaylistId === activePlaylistId && removedPath === playingTrackPath) {
+          if (
+            playingPlaylistId === activePlaylistId &&
+            removedPath === playingTrackPath
+          ) {
             if (next.length === 0) {
               pause();
               setPlayingTrackPath(null);
@@ -243,7 +283,9 @@ export default function usePlayer() {
   );
 
   const clearPlaylist = useCallback(() => {
-    setPlaylists((prev) => prev.map((p) => (p.id !== activePlaylistId ? p : { ...p, songs: [] })));
+    setPlaylists((prev) =>
+      prev.map((p) => (p.id !== activePlaylistId ? p : { ...p, songs: [] })),
+    );
     if (playingPlaylistId === activePlaylistId) {
       pause();
       setPlayingTrackPath(null);
@@ -253,10 +295,11 @@ export default function usePlayer() {
     setDuration(0);
   }, [activePlaylistId, playingPlaylistId, pause]);
 
-
   const nextTrack = useCallback(() => {
     if (!playingPlaylist || playingPlaylistSongs.length === 0) return;
-    const currentIdx = playingPlaylistSongs.findIndex((s) => s.path === playingTrackPath);
+    const currentIdx = playingPlaylistSongs.findIndex(
+      (s) => s.path === playingTrackPath,
+    );
     let nextIdx;
     if (isShuffle) {
       do {
@@ -266,33 +309,41 @@ export default function usePlayer() {
       nextIdx = (currentIdx + 1) % playingPlaylistSongs.length;
     }
     setPlayingTrackPath(playingPlaylistSongs[nextIdx].path);
-    setCurrentIndex(nextIdx); 
+    setCurrentIndex(nextIdx);
     setIsPlaying(true);
   }, [playingPlaylist, playingPlaylistSongs, playingTrackPath, isShuffle]);
 
   const previousTrack = useCallback(() => {
     if (!playingPlaylist || playingPlaylistSongs.length === 0) return;
-    const currentIdx = playingPlaylistSongs.findIndex((s) => s.path === playingTrackPath);
+    const currentIdx = playingPlaylistSongs.findIndex(
+      (s) => s.path === playingTrackPath,
+    );
     let prevIdx;
     if (isShuffle) {
       do {
         prevIdx = Math.floor(Math.random() * playingPlaylistSongs.length);
       } while (prevIdx === currentIdx && playingPlaylistSongs.length > 1);
     } else {
-      prevIdx = (currentIdx - 1 + playingPlaylistSongs.length) % playingPlaylistSongs.length;
+      prevIdx =
+        (currentIdx - 1 + playingPlaylistSongs.length) %
+        playingPlaylistSongs.length;
     }
     setPlayingTrackPath(playingPlaylistSongs[prevIdx].path);
     setCurrentIndex(prevIdx);
     setIsPlaying(true);
   }, [playingPlaylist, playingPlaylistSongs, playingTrackPath, isShuffle]);
 
+  // FIX 4: Stream qo'shiqlar tarmoq xatosida o'chirilmaydi
   const handleAudioError = useCallback(() => {
     if (!currentSong) return;
+    if (currentSong.isStream) {
+      setIsPlaying(false);
+      return;
+    }
     console.warn("Invalid audio path, removing:", currentSong.path);
     removeSong(currentSongIndex);
     setIsPlaying(false);
   }, [currentSong, currentSongIndex, removeSong]);
-
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -322,25 +373,63 @@ export default function usePlayer() {
     };
   }, [isRepeat, nextTrack, handleAudioError]);
 
-
+  // FIX 3: YouTube stream URL'larini async ravishda hal qilish
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (!currentSrc) {
+    if (!currentSong) {
       audio.pause();
       audio.removeAttribute("src");
       return;
     }
 
-    audio.src = currentSrc;
-    audio.load();
+    let cancelled = false;
 
-    if (isPlaying) {
-      audio.play().catch(console.error);
-    }
-  }, [currentSrc]);
+    const loadAudio = async () => {
+      let src;
 
+      if (currentSong.isStream && currentSong.videoId) {
+        const cached = streamUrlCache.current.get(currentSong.videoId);
+        if (cached && Date.now() - cached.fetchedAt < STREAM_URL_TTL) {
+          src = cached.url;
+        } else {
+          try {
+            const info = await invoke("get_audio_url", {
+              videoId: currentSong.videoId,
+            });
+            if (cancelled) return;
+            streamUrlCache.current.set(currentSong.videoId, {
+              url: info.url,
+              fetchedAt: Date.now(),
+            });
+            src = info.url;
+          } catch (err) {
+            if (!cancelled) {
+              console.error("Stream URL olishda xatolik:", err);
+              setIsPlaying(false);
+            }
+            return;
+          }
+        }
+      } else {
+        src = normalizeAudioPath(currentSong.path);
+      }
+
+      if (cancelled || !src) return;
+
+      audio.src = src;
+      audio.load();
+      if (isPlayingRef.current) {
+        audio.play().catch(console.error);
+      }
+    };
+
+    loadAudio();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentSong]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -351,7 +440,7 @@ export default function usePlayer() {
     } else {
       audio.pause();
     }
-  }, [isPlaying]); // ← currentSrc YO'Q
+  }, [isPlaying]);
 
   useEffect(() => {
     if (!("mediaSession" in navigator)) return;
@@ -363,21 +452,13 @@ export default function usePlayer() {
       album: "",
     });
 
-    navigator.mediaSession.setActionHandler("play", () => {
-      play();
-    });
-    navigator.mediaSession.setActionHandler("pause", () => {
-      pause();
-    });
-    navigator.mediaSession.setActionHandler("previoustrack", () => {
-      previousTrack();
-    });
-    navigator.mediaSession.setActionHandler("nexttrack", () => {
-      nextTrack();
-    });
-    navigator.mediaSession.setActionHandler("stop", () => {
-      stop();
-    });
+    navigator.mediaSession.setActionHandler("play", () => play());
+    navigator.mediaSession.setActionHandler("pause", () => pause());
+    navigator.mediaSession.setActionHandler("previoustrack", () =>
+      previousTrack(),
+    );
+    navigator.mediaSession.setActionHandler("nexttrack", () => nextTrack());
+    navigator.mediaSession.setActionHandler("stop", () => stop());
   }, [currentSong, play, pause, previousTrack, nextTrack, stop]);
 
   useEffect(() => {
@@ -421,37 +502,56 @@ export default function usePlayer() {
       else play();
     },
 
+    // FIX 3: CDN URL'ni keshga saqlaydi, path = youtube://videoId formatida
     playStreamDirectly: (song) => {
+      if (song.isStream && song.videoId && song.path?.startsWith("http")) {
+        streamUrlCache.current.set(song.videoId, {
+          url: song.path,
+          fetchedAt: Date.now(),
+        });
+      }
+
+      const storedPath =
+        song.isStream && song.videoId ? `youtube://${song.videoId}` : song.path;
+
       setPlayingPlaylistId(activePlaylistId);
-      setPlayingTrackPath(song.path);
+      setPlayingTrackPath(storedPath);
       setIsPlaying(true);
 
       setPlaylists((prev) =>
         prev.map((p) => {
           if (p.id !== activePlaylistId) return p;
 
-          const exists = p.songs.some(
-            (s) =>
-              song.videoId
-                ? s.videoId === song.videoId 
-                : s.path === song.path, 
+          const exists = p.songs.some((s) =>
+            song.videoId ? s.videoId === song.videoId : s.path === storedPath,
           );
 
           if (exists) {
             return {
               ...p,
               songs: p.songs.map((s) =>
-                s.videoId === song.videoId
-                  ? { ...s, path: song.path } 
-                  : s,
+                s.videoId === song.videoId ? { ...s, path: storedPath } : s,
               ),
             };
           }
 
-          return { ...p, songs: [...p.songs, song] };
+          return {
+            ...p,
+            songs: [
+              ...p.songs,
+              {
+                title: song.title,
+                path: storedPath,
+                isStream: song.isStream || false,
+                videoId: song.videoId || null,
+                thumbnail: song.thumbnail || null,
+              },
+            ],
+          };
         }),
       );
     },
+
     playFromBeginning: () => {
       const audio = audioRef.current;
       if (!audio) return;

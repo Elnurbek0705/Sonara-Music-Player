@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Tauri signing keys (NEVER commit!)
+src-tauri/*.key
+src-tauri/*.key.pub
+src-tauri/cookies.txt
