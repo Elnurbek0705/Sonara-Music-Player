@@ -36,6 +36,8 @@ export default function PlayerContainer({
   selectPlaylist,
   addPlaylist,
   deletePlaylist,
+  volume,
+  setVolume,
   theme,
   toggleTheme,
   playStreamDirectly,
@@ -60,7 +62,14 @@ export default function PlayerContainer({
 
       <div className="flex flex-col flex-1 w-full p-1 min-h-0 overflow-hidden">
         {/* Trek nomi */}
-        <h2 className="text-md mb-2 p-2 font-semibold text-brand bg-secondary-bg truncate flex-shrink-0">
+        <h2
+          className="text-sm px-3 py-1.5 font-semibold truncate flex-shrink-0"
+          style={{
+            background: "var(--bg-surface-dark)",
+            color: "var(--accent)",
+            borderBottom: "1px solid var(--border-color)",
+          }}
+        >
           {title}
         </h2>
 
@@ -77,6 +86,8 @@ export default function PlayerContainer({
             setIsRepeat={setIsRepeat}
             isShuffle={isShuffle}
             setIsShuffle={setIsShuffle}
+            volume={volume}
+            setVolume={setVolume}
           />
           <ProgressBar currentTime={currentTime} duration={duration} onSeek={seek} />
         </div>

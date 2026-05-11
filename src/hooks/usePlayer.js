@@ -51,16 +51,22 @@ export default function usePlayer() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
+  const [volume, setVolume] = useState(
+    () => parseFloat(localStorage.getItem("sonara-volume") ?? "1"),
+  );
+
   const audioRef = useRef(null);
   const isLoadedRef = useRef(false);
   const isPlayingRef = useRef(false);
   // FIX 3: YouTube CDN URL'larini xotirada saqlash (diskka saqlanmaydi)
   const streamUrlCache = useRef(new Map()); // videoId -> { url, fetchedAt }
 
-  // isPlayingRef ni sinxronlashtirish (async effect uchun)
+  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
+
   useEffect(() => {
-    isPlayingRef.current = isPlaying;
-  }, [isPlaying]);
+    if (audioRef.current) audioRef.current.volume = volume;
+    localStorage.setItem("sonara-volume", String(volume));
+  }, [volume]);
 
   const activePlaylist = useMemo(
     () => playlists.find((p) => p.id === activePlaylistId),
@@ -495,6 +501,8 @@ export default function usePlayer() {
     addSongs,
     removeSong,
     clearPlaylist,
+    volume,
+    setVolume,
     setIsRepeat,
     setIsShuffle,
     togglePlay: () => {

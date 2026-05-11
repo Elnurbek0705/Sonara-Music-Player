@@ -6,7 +6,7 @@ export default function ProgressBar({ currentTime, duration, onSeek }) {
 
   const progress = duration > 0 ? Math.min((currentTime / duration) * 100, 100) : 0;
 
-  const formatTime = (s) => {
+  const fmt = (s) => {
     if (!s || isNaN(s)) return "0:00";
     const m = Math.floor(s / 60);
     const sec = Math.floor(s % 60);
@@ -24,55 +24,59 @@ export default function ProgressBar({ currentTime, duration, onSeek }) {
   };
 
   return (
-    <div className="w-full px-2 py-1 select-none">
-      {/* Track */}
+    <div className="flex items-center gap-2 px-3 pb-2 select-none">
+      {/* Current time */}
+      <span
+        className="text-[10px] tabular-nums flex-shrink-0"
+        style={{ color: "var(--text-muted)", minWidth: 30 }}
+      >
+        {fmt(currentTime)}
+      </span>
+
+      {/* Track bar */}
       <div
-        className="relative h-1 rounded-full cursor-pointer group"
-        style={{ background: "var(--bg-surface)" }}
+        className="flex-1 relative cursor-pointer"
+        style={{ height: 16, display: "flex", alignItems: "center" }}
         onClick={handleClick}
         onMouseMove={handleMouseMove}
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
       >
-        {/* Hover ghost */}
-        {hovering && (
+        <div
+          className="w-full relative rounded-full"
+          style={{
+            height: hovering ? 4 : 2,
+            background: "var(--bg-surface)",
+            transition: "height 0.15s",
+          }}
+        >
+          {/* Hover ghost */}
+          {hovering && (
+            <div
+              className="absolute inset-y-0 left-0 rounded-full"
+              style={{ width: `${hoverRatio * 100}%`, background: "var(--accent-strong)", opacity: 0.35 }}
+            />
+          )}
+
+          {/* Progress fill */}
           <div
-            className="absolute inset-y-0 left-0 rounded-full transition-none"
-            style={{
-              width: `${hoverRatio * 100}%`,
-              background: "var(--accent-strong)",
-              opacity: 0.35,
-            }}
+            className="absolute inset-y-0 left-0 rounded-full"
+            style={{ width: `${progress}%`, background: "var(--accent)", transition: "width 0.1s linear" }}
           />
-        )}
 
-        {/* Progress fill */}
-        <div
-          className="absolute inset-y-0 left-0 rounded-full"
-          style={{
-            width: `${progress}%`,
-            background: "var(--accent)",
-            transition: "width 0.1s linear",
-          }}
-        />
+          {/* Thumb */}
+          {hovering && (
+            <div
+              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full pointer-events-none"
+              style={{ left: `${progress}%`, width: 10, height: 10, background: "var(--accent)" }}
+            />
+          )}
+        </div>
 
-        {/* Thumb dot */}
-        <div
-          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full pointer-events-none"
-          style={{
-            left: `${progress}%`,
-            width: hovering ? 12 : 0,
-            height: hovering ? 12 : 0,
-            background: "var(--accent)",
-            boxShadow: hovering ? "0 0 0 3px var(--accent-strong)" : "none",
-            transition: "width 0.15s, height 0.15s, box-shadow 0.15s",
-          }}
-        />
-
-        {/* Hover time tooltip */}
+        {/* Hover tooltip */}
         {hovering && duration > 0 && (
           <div
-            className="absolute -top-7 text-xs px-1.5 py-0.5 rounded pointer-events-none"
+            className="absolute -top-6 text-[10px] px-1.5 py-0.5 rounded pointer-events-none"
             style={{
               left: `${hoverRatio * 100}%`,
               transform: "translateX(-50%)",
@@ -82,10 +86,18 @@ export default function ProgressBar({ currentTime, duration, onSeek }) {
               whiteSpace: "nowrap",
             }}
           >
-            {formatTime(hoverRatio * duration)}
+            {fmt(hoverRatio * duration)}
           </div>
         )}
       </div>
+
+      {/* Total duration */}
+      <span
+        className="text-[10px] tabular-nums flex-shrink-0"
+        style={{ color: "var(--text-muted)", minWidth: 30, textAlign: "right" }}
+      >
+        {fmt(duration)}
+      </span>
     </div>
   );
 }
