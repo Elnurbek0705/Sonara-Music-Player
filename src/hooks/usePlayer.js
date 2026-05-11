@@ -4,11 +4,9 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 
 const normalizeAudioPath = (path) => {
   if (!path) return "";
-  // Stream URL (http/https) bo'lsa — to'g'ridan ishlatish
   if (path.startsWith("http://") || path.startsWith("https://")) {
     return path;
   }
-  // Mahalliy fayl bo'lsa — convertFileSrc
   return convertFileSrc(path);
 };
 
@@ -68,7 +66,6 @@ export default function usePlayer() {
     playingTrackPath && currentSongIndex >= 0 ? playingPlaylistSongs[currentSongIndex] : null;
   const currentSrc = currentSong ? normalizeAudioPath(currentSong.path) : "";
 
-  // Playlists yuklash
   useEffect(() => {
     if (!isLoadedRef.current) {
       isLoadedRef.current = true;
@@ -86,15 +83,12 @@ export default function usePlayer() {
         });
     }
   }, []);
-
-  // Playlists o'zgarganda saqlash
   useEffect(() => {
     if (playlists.length > 0) {
       savePlaylists(playlists);
     }
   }, [playlists]);
 
-  // Playback state saqlash
   useEffect(() => {
     if (playingPlaylistId && playingTrackPath) {
       localStorage.setItem(
@@ -199,7 +193,6 @@ export default function usePlayer() {
             }))
             .filter((s) => {
               if (!s.path) return false;
-              // videoId bo'yicha yoki path bo'yicha duplicate tekshiruv
               return !p.songs.some((existing) =>
                 s.videoId ? existing.videoId === s.videoId : existing.path === s.path,
               );
@@ -260,7 +253,6 @@ export default function usePlayer() {
     setDuration(0);
   }, [activePlaylistId, playingPlaylistId, pause]);
 
-  // ─── Keyingi / oldingi track ─────────────────────────────────────
 
   const nextTrack = useCallback(() => {
     if (!playingPlaylist || playingPlaylistSongs.length === 0) return;
@@ -301,7 +293,6 @@ export default function usePlayer() {
     setIsPlaying(false);
   }, [currentSong, currentSongIndex, removeSong]);
 
-  // ─── Audio event listeners ───────────────────────────────────────
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -331,7 +322,6 @@ export default function usePlayer() {
     };
   }, [isRepeat, nextTrack, handleAudioError]);
 
-  // ─── FIX: src o'zgarganda FAQAT load — isPlaying dan mustaqil ────
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -351,7 +341,6 @@ export default function usePlayer() {
     }
   }, [currentSrc]);
 
-  // ─── FIX: play/pause holati o'zgarganda FAQAT play/pause ─────────
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -364,7 +353,6 @@ export default function usePlayer() {
     }
   }, [isPlaying]); // ← currentSrc YO'Q
 
-  // usePlayer.js — currentSong o'zgarganda MediaSession yangilash
   useEffect(() => {
     if (!("mediaSession" in navigator)) return;
     if (!currentSong) return;
@@ -392,7 +380,6 @@ export default function usePlayer() {
     });
   }, [currentSong, play, pause, previousTrack, nextTrack, stop]);
 
-  // isPlaying o'zgarganda playbackState yangilash
   useEffect(() => {
     if (!("mediaSession" in navigator)) return;
     navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
@@ -443,28 +430,24 @@ export default function usePlayer() {
         prev.map((p) => {
           if (p.id !== activePlaylistId) return p;
 
-          // videoId bo'yicha tekshirish (stream uchun)
-          // path bo'yicha tekshirish (mahalliy fayl uchun)
           const exists = p.songs.some(
             (s) =>
               song.videoId
-                ? s.videoId === song.videoId // YT trek
-                : s.path === song.path, // mahalliy fayl
+                ? s.videoId === song.videoId 
+                : s.path === song.path, 
           );
 
           if (exists) {
-            // Mavjud bo'lsa — faqat URL ni yangilash
             return {
               ...p,
               songs: p.songs.map((s) =>
                 s.videoId === song.videoId
-                  ? { ...s, path: song.path } // yangi URL bilan yangilash
+                  ? { ...s, path: song.path } 
                   : s,
               ),
             };
           }
 
-          // Yangi bo'lsa — qo'shish
           return { ...p, songs: [...p.songs, song] };
         }),
       );
