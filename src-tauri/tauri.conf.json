@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Sonara",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "identifier": "com.elnurbek.sonara",
   "build": {
     "frontendDist": "../dist",
@@ -23,11 +23,12 @@
         "fullscreen": false,
         "transparent": true,
         "closable": true,
-        "visible": false
+        "visible": false,
+        "shadow": false
       }
     ],
     "security": {
-      "csp": null,
+      "csp": "default-src 'self'; img-src 'self' data: https: asset: http://asset.localhost; media-src 'self' https: asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; connect-src 'self' https: ipc: http://ipc.localhost",
       "assetProtocol": {
         "enable": true,
         "scope": ["**"]
@@ -36,7 +37,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["msi", "nsis"],
     "externalBin": [
       "binaries/yt-dlp"
     ],
@@ -47,7 +48,12 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "createUpdaterArtifacts": true
+    "createUpdaterArtifacts": true,
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    }
   },
   "plugins": {
     "updater": {
