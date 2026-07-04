@@ -42,6 +42,15 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+async fn show_main_window(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("main") {
+        window.show().map_err(|e| e.to_string())?;
+        window.set_focus().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
@@ -250,17 +259,33 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // Windows specific
-            let window = app.get_webview_window("main").unwrap();
-            #[cfg(target_os = "windows")]
-            {
-                let _ = window.set_shadow(false);
-                let _ = window.set_decorations(false);
-            }
+        // Windows specific — window hozircha yashirin (tauri.conf.json'da "visible": false)
+                    // Uni frontend to'liq render bo'lgach "show_main_window" command orqali ko'rsatadi
+                    let window = app.get_webview_window("main").unwrap();
+                    #[cfg(target_os = "windows")]
+                    {
+                        let _ = window.set_shadow(false);
+                        let _ = window.set_decorations(false);
+                    }
 
-            Ok(())
+                    // Close tugmasi bosilganda dastur o'chmasdan tray'ga yashirinadi
+                    let window_clone = window.clone();
+                    window.on_window_event(move |event| {
+                        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                            api.prevent_close();
+                            let _ = window_clone.hide();
+                        }
+                    });
+
+                    Ok(())
         })
-        .invoke_handler(tauri::generate_handler![search_youtube, get_audio_url, check_update, install_update])
+        .invoke_handler(tauri::generate_handler![
+            search_youtube,
+            get_audio_url,
+            check_update,
+            install_update,
+            show_main_window
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
