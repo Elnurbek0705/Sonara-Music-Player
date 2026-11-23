@@ -150,6 +150,7 @@ async fn get_audio_url(app: tauri::AppHandle, video_id: String) -> Result<AudioI
         "--dump-json".to_string(),
         "--no-warnings".to_string(),
         "--quiet".to_string(),
+        "--force-ipv4".to_string(),
         "-f".to_string(),
         "bestaudio[ext=m4a]/bestaudio/best".to_string(),
         "--user-agent".to_string(),
